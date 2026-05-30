@@ -5,7 +5,9 @@ import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Printer, CheckCircle, Clock, Users } from "lucide-react";
 
-export default function TokenPage() {
+import { Suspense } from "react";
+
+function TokenContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tokenData, setTokenData] = useState<any>(null);
@@ -105,5 +107,13 @@ export default function TokenPage() {
         </div>
       </motion.div>
     </main>
+  );
+}
+
+export default function TokenPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading token...</div>}>
+      <TokenContent />
+    </Suspense>
   );
 }

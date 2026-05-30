@@ -17,7 +17,9 @@ import { useEffect, useRef, useState } from "react";
 import { User, Mic, MicOff, Loader2 } from "lucide-react";
 import { useVoice } from "../../hooks/useVoice";
 
-export default function DepartmentPage() {
+import { Suspense } from "react";
+
+function DepartmentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const patientName = searchParams.get('name') || "Guest_Patient";
@@ -170,5 +172,13 @@ export default function DepartmentPage() {
       </div>
       
     </main>
+  );
+}
+
+export default function DepartmentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xl">Loading department...</div>}>
+      <DepartmentContent />
+    </Suspense>
   );
 }
