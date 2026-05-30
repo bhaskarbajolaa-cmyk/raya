@@ -3,17 +3,28 @@ import json
 import math
 import cv2
 import numpy as np
+import os
+import urllib.request
 import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
 class FaceBiometricService:
     def __init__(self):
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=True,
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5
+        MODEL_PATH = "face_landmarker.task"
+        if not os.path.exists(MODEL_PATH):
+            print("Downloading Face Landmarker model...")
+            urllib.request.urlretrieve(
+                "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", 
+                MODEL_PATH
+            )
+            
+        base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+        options = vision.FaceLandmarkerOptions(
+            base_options=base_options,
+            num_faces=1
         )
+        self.detector = vision.FaceLandmarker.create_from_options(options)
 
     def base64_to_image(self, base64_str: str):
         if ',' in base64_str:
@@ -29,14 +40,19 @@ class FaceBiometricService:
             
         # Convert BGR to RGB for MediaPipe
         img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        results = self.face_mesh.process(img_rgb)
+        
+        # Convert to MediaPipe Image
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+        
+        # Process using new Tasks API
+        detection_result = self.detector.detect(mp_image)
         
         # IF NO FACE IS DETECTED, RETURN NONE
-        if not results.multi_face_landmarks:
+        if not detection_result.face_landmarks:
             return None 
             
         # Extract the first face's landmarks as a feature vector
-        landmarks = results.multi_face_landmarks[0].landmark
+        landmarks = detection_result.face_landmarks[0]
         
         # Flatten into a vector (x, y, z for each point)
         vector = []
