@@ -104,11 +104,18 @@ function DepartmentContent() {
         </button>
 
         {/* User Indication Top Right */}
-        <div className="flex items-center bg-slate-800/50 px-4 py-2 rounded-full border border-slate-700 shadow-lg">
-          <User className="w-5 h-5 text-teal-400 mr-2" />
-          <span className="text-white font-medium">
-            Welcome, <span className="text-teal-400">{patientName}</span>
-          </span>
+        <div className="flex items-center bg-slate-800/50 px-5 py-3 rounded-2xl border border-slate-700 shadow-lg">
+          <User className="w-8 h-8 text-teal-400 mr-3" />
+          <div className="flex flex-col text-left">
+            <span className="text-white font-medium text-sm">
+              Welcome, <span className="text-teal-400 text-base">{patientName}</span>
+            </span>
+            {abha && (
+              <span className="text-slate-400 text-xs font-mono mt-0.5 tracking-wider">
+                ABHA: {abha}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
