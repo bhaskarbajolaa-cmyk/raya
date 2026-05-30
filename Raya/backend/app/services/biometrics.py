@@ -3,28 +3,11 @@ import json
 import math
 import cv2
 import numpy as np
-import os
-import urllib.request
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
 
 class FaceBiometricService:
     def __init__(self):
-        MODEL_PATH = "face_landmarker.task"
-        if not os.path.exists(MODEL_PATH):
-            print("Downloading Face Landmarker model...")
-            urllib.request.urlretrieve(
-                "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", 
-                MODEL_PATH
-            )
-            
-        base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
-        options = vision.FaceLandmarkerOptions(
-            base_options=base_options,
-            num_faces=1
-        )
-        self.detector = vision.FaceLandmarker.create_from_options(options)
+        # We use OpenCV's built-in Haar Cascade because it requires NO external dependencies or OpenGL (libGLESv2)
+        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
     def base64_to_image(self, base64_str: str):
         if ',' in base64_str:
@@ -38,31 +21,22 @@ class FaceBiometricService:
         if image is None:
             return None
             
-        # Convert BGR to RGB for MediaPipe
-        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Convert to MediaPipe Image
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+        # Detect face
+        faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
         
-        # Process using new Tasks API
-        detection_result = self.detector.detect(mp_image)
-        
-        # IF NO FACE IS DETECTED, RETURN NONE
-        if not detection_result.face_landmarks:
+        # IF NO FACE DETECTED, RETURN NONE (Solves the "stepping away" bug)
+        if len(faces) == 0:
             return None 
             
-        # Extract the first face's landmarks as a feature vector
-        landmarks = detection_result.face_landmarks[0]
+        # Extract the first face
+        (x, y, w, h) = faces[0]
+        face_roi = image[y:y+h, x:x+w]
         
-        # Flatten into a vector (x, y, z for each point)
-        vector = []
-        for lm in landmarks:
-            vector.extend([lm.x, lm.y, lm.z])
-            
-        # Normalize the vector to handle distance scaling
-        norm = math.sqrt(sum(v*v for v in vector))
-        if norm > 0:
-            vector = [v/norm for v in vector]
+        # Compute a 3D Color Histogram of the face as a lightweight PoC embedding
+        hist = cv2.calcHist([face_roi], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+        vector = cv2.normalize(hist, hist).flatten().tolist()
             
         return vector
 
