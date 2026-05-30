@@ -10,5 +10,5 @@ mediapipe>=0.10.30
 opencv-python-headless==4.8.1.78
 numpy
 
-psycopg2-binary==2.9.9
+psycopg2-binary
 
