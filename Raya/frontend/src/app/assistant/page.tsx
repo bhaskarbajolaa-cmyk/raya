@@ -77,7 +77,7 @@ export default function AssistantPage() {
               const abhaFormatted = digits.length === 14 ? 
                 `${digits.slice(0,2)}-${digits.slice(2,6)}-${digits.slice(6,10)}-${digits.slice(10,14)}` : digits;
                 
-              const res = await fetch(`http://localhost:8000/api/abha/profile/${abhaFormatted}`);
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/abha/profile/${abhaFormatted}`);
               if (res.ok) {
                 const data = await res.json();
                 setPatientInfo(data);
@@ -141,7 +141,7 @@ export default function AssistantPage() {
         case "REG_SUBMIT":
           try {
             speak("Aapka profile banaya ja raha hai. Pratiksha karein.");
-            const res = await fetch('http://localhost:8000/api/abha/register', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/abha/register`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -189,7 +189,7 @@ export default function AssistantPage() {
               setState("GENERATING");
               
               try {
-                const res = await fetch('http://localhost:8000/api/tokens/generate', {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tokens/generate`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({

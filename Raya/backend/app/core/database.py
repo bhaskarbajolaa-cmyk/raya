@@ -7,12 +7,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 DATABASE_DIR = os.path.join(BASE_DIR, "database").replace("\\", "/")
 
 # Create connection URLs
-ABHA_DB_URL = f"sqlite:///{DATABASE_DIR}/abha.db"
-RAYA_DB_URL = f"sqlite:///{DATABASE_DIR}/raya.db"
+# For Vercel/Render deployments, we allow passing a DATABASE_URL for Postgres.
+# Otherwise we fallback to local SQLite files.
+ABHA_DB_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATABASE_DIR}/abha.db")
+RAYA_DB_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATABASE_DIR}/raya.db")
 
-# Engines
-abha_engine = create_engine(ABHA_DB_URL, connect_args={"check_same_thread": False})
-raya_engine = create_engine(RAYA_DB_URL, connect_args={"check_same_thread": False})
+# Engines (Postgres doesn't need check_same_thread)
+abha_engine = create_engine(ABHA_DB_URL, connect_args={"check_same_thread": False} if "sqlite" in ABHA_DB_URL else {})
+raya_engine = create_engine(RAYA_DB_URL, connect_args={"check_same_thread": False} if "sqlite" in RAYA_DB_URL else {})
 
 # Session locals
 SessionLocalABHA = sessionmaker(autocommit=False, autoflush=False, bind=abha_engine)

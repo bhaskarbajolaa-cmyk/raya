@@ -38,7 +38,7 @@ export default function LoginPage() {
           const base64Image = canvas.toDataURL("image/jpeg");
 
           try {
-            const res = await fetch('http://localhost:8000/api/face/match', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/face/match`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image_base64: base64Image })
@@ -81,7 +81,7 @@ export default function LoginPage() {
       const abhaFormatted = digits.length === 14 ? 
         `${digits.slice(0,2)}-${digits.slice(2,6)}-${digits.slice(6,10)}-${digits.slice(10,14)}` : abhaId;
         
-      const res = await fetch(`http://localhost:8000/api/abha/profile/${abhaFormatted}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/abha/profile/${abhaFormatted}`);
       if (res.ok) {
         const data = await res.json();
         router.push(`/department?name=${encodeURIComponent(data.full_name)}&abha=${encodeURIComponent(data.abha_number)}`);

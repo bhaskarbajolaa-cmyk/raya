@@ -14,8 +14,8 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const [tokenRes, userRes] = await Promise.all([
-        fetch("http://localhost:8000/api/tokens/queue"),
-        fetch("http://localhost:8000/api/users/")
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tokens/queue`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/`)
       ]);
       if (tokenRes.ok) setTokens(await tokenRes.json());
       if (userRes.ok) setUsers(await userRes.json());
@@ -33,7 +33,7 @@ export default function AdminDashboard() {
   const handleCompleteToken = async (token_number: string) => {
     // This will mark the token as COMPLETED, removing it from the active WAITING queue.
     try {
-      await fetch(`http://localhost:8000/api/tokens/queue/${token_number}/complete`, { method: "PUT" });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tokens/queue/${token_number}/complete`, { method: "PUT" });
       fetchData();
     } catch (err) {
       console.error("Failed to complete token", err);
@@ -43,7 +43,7 @@ export default function AdminDashboard() {
   const handleDeleteToken = async (token_number: string) => {
     if (!confirm("Are you sure you want to permanently delete this token?")) return;
     try {
-      await fetch(`http://localhost:8000/api/tokens/queue/${token_number}`, { method: "DELETE" });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tokens/queue/${token_number}`, { method: "DELETE" });
       fetchData();
     } catch (err) {
       console.error("Failed to delete token", err);
@@ -53,7 +53,7 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (user_id: number) => {
     if (!confirm("Are you sure you want to delete this enrolled biometric profile?")) return;
     try {
-      await fetch(`http://localhost:8000/api/users/${user_id}`, { method: "DELETE" });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/${user_id}`, { method: "DELETE" });
       fetchData();
     } catch (err) {
       console.error("Failed to delete user", err);

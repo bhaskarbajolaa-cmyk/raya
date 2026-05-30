@@ -49,7 +49,7 @@ export default function RegisterPage() {
 
     try {
       // 1. Register ABHA Profile
-      const abhaRes = await fetch("http://localhost:8000/api/abha/register", {
+      const abhaRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/abha/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
@@ -73,7 +73,7 @@ export default function RegisterPage() {
 
       // 3. Register Face Biometrics in RAYA
       if (base64Image) {
-        const faceRes = await fetch("http://localhost:8000/api/face/register", {
+        const faceRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/face/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
