@@ -14,8 +14,8 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const [tokenRes, userRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tokens/queue`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tokens/queue?t=${Date.now()}`, { cache: 'no-store' }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/?t=${Date.now()}`, { cache: 'no-store' })
       ]);
       if (tokenRes.ok) setTokens(await tokenRes.json());
       if (userRes.ok) setUsers(await userRes.json());
