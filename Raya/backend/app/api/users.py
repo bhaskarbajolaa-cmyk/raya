@@ -33,6 +33,13 @@ def delete_user(user_id: int, db: Session = Depends(get_raya_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    abha_num = user.abha_number
     db.delete(user)
+    
+    # Cascade delete associated tokens
+    if abha_num:
+        from app.api.tokens import TokenModel
+        db.query(TokenModel).filter(TokenModel.abha_number == abha_num).delete(synchronize_session=False)
+        
     db.commit()
-    return {"message": "User deleted successfully"}
+    return {"message": "User and associated tokens deleted successfully"}
