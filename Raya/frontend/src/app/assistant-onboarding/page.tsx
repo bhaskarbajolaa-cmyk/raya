@@ -20,6 +20,7 @@ export default function AssistantOnboardingPage() {
   const [aadhaar, setAadhaar] = useState("");
   const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
+  const [expectedOtp, setExpectedOtp] = useState("");
   
   const initFired = useRef(false);
 
@@ -81,10 +82,36 @@ export default function AssistantOnboardingPage() {
       resetTranscript();
       setState("MOBILE_RECORDING");
     } else if (state === "MOBILE_CONFIRM") {
-      speak("Aapke mobile par OTP bheja gaya hai. Kripya record button daba kar OTP bataein.");
+      speak("Kripya pratiksha karein, OTP bheja ja raha hai.");
       resetTranscript();
-      setState("OTP_RECORDING");
+      
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/abha/send_otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mobile_number: mobile })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setExpectedOtp(data.otp);
+          speak("Aapke mobile par OTP bheja gaya hai. Kripya record button daba kar OTP bataein.");
+          setState("OTP_RECORDING");
+        } else {
+          speak("OTP bhejane mein samasya aayi. Kripya dobara confirm karein.");
+          setState("MOBILE_CONFIRM");
+        }
+      } catch (e) {
+        speak("Network error. Kripya dobara confirm karein.");
+        setState("MOBILE_CONFIRM");
+      }
     } else if (state === "OTP_CONFIRM") {
+      if (otp !== expectedOtp) {
+        speak("Aapka OTP galat hai. Kripya sahi OTP record karein.");
+        resetTranscript();
+        setState("OTP_RECORDING");
+        return;
+      }
+      
       setState("SUBMIT");
       speak("Aapka khata banaya ja raha hai. Pratiksha karein.");
       
