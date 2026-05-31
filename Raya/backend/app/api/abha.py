@@ -62,17 +62,17 @@ def send_otp(req: OTPSendRequest):
         
         # Twilio returns 201 Created on success
         if response.status_code in [200, 201]:
-            return {"success": True, "otp": otp_code, "message": "OTP sent successfully"}
+            return {"success": True, "otp": otp_code, "message": "OTP sent successfully", "is_demo_fallback": False}
         else:
             # Fallback for PoC: if Twilio fails (e.g. unverified number on free tier),
             # silently return a master OTP (123456) so the demo can continue.
             err_msg = res_json.get('message', response.text)
             print(f"Twilio failed, falling back to dummy OTP. Error: {err_msg}")
-            return {"success": True, "otp": "123456", "message": "OTP fallback active"}
+            return {"success": True, "otp": "123456", "message": "OTP fallback active", "is_demo_fallback": True}
     except Exception as e:
         # Catch network errors and also fallback
         print(f"Network error, falling back to dummy OTP. Error: {str(e)}")
-        return {"success": True, "otp": "123456", "message": "OTP fallback active"}
+        return {"success": True, "otp": "123456", "message": "OTP fallback active", "is_demo_fallback": True}
 
 @router.get("/profile/{abha_number}", response_model=ABHAProfileResponse)
 def get_patient_profile(abha_number: str, db: Session = Depends(get_abha_db)):

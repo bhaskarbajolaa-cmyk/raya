@@ -128,7 +128,11 @@ export default function AssistantOnboardingPage() {
         const data = await res.json();
         if (res.ok) {
           setExpectedOtp(data.otp);
-          speak("Aapke mobile par OTP bheja gaya hai. Kripya record button daba kar OTP bataein.");
+          if (data.is_demo_fallback) {
+             speak(`Demo mode. Kripya apna dummy OTP, ${data.otp.split('').join(', ')}, record karein.`);
+          } else {
+             speak("Aapke mobile par OTP bheja gaya hai. Kripya record button daba kar OTP bataein.");
+          }
           setState("OTP_RECORDING");
         } else {
           speak("OTP bhejane mein samasya aayi. Kripya dobara confirm karein.");

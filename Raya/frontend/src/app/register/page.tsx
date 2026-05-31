@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [otpStep, setOtpStep] = useState(false);
   const [expectedOtp, setExpectedOtp] = useState("");
   const [enteredOtp, setEnteredOtp] = useState("");
+  const [isFallback, setIsFallback] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const [formData, setFormData] = useState({
@@ -61,6 +62,7 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.detail || "Failed to send OTP");
       
       setExpectedOtp(data.otp);
+      setIsFallback(data.is_demo_fallback || false);
       setOtpStep(true);
     } catch (error: any) {
       setErrorMsg(error.message || "Failed to send OTP");
@@ -199,7 +201,16 @@ export default function RegisterPage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <h3 className="text-2xl font-semibold mb-4">Enter OTP</h3>
-              <p className="text-slate-400 mb-6">An OTP has been sent to {formData.mobile_number}</p>
+              
+              {isFallback ? (
+                <div className="bg-amber-500/20 border border-amber-500 text-amber-300 p-4 rounded-xl mb-6 text-left w-full max-w-sm">
+                  <p className="font-semibold mb-1 flex items-center gap-2">⚠️ Demo Mode Active</p>
+                  <p className="text-sm">This number is not verified with Twilio. For the demo, please enter OTP: <span className="font-bold text-lg text-white ml-2">{expectedOtp}</span></p>
+                </div>
+              ) : (
+                <p className="text-slate-400 mb-6">An OTP has been sent to {formData.mobile_number}</p>
+              )}
+              
               <input 
                 type="text" 
                 maxLength={6}
