@@ -23,8 +23,27 @@ export default function AssistantOnboardingPage() {
   const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
   const [expectedOtp, setExpectedOtp] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   const initFired = useRef(false);
+
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    const startCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error("Camera error", err);
+      }
+    };
+    startCamera();
+    return () => {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    };
+  }, []);
 
   useEffect(() => {
     if (state === "INIT") {
@@ -145,6 +164,31 @@ export default function AssistantOnboardingPage() {
         
         if (res.ok) {
           const data = await res.json();
+          
+          // Capture and register face
+          let base64Image = "";
+          if (videoRef.current) {
+            const canvas = document.createElement("canvas");
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+              base64Image = canvas.toDataURL("image/jpeg");
+            }
+          }
+          
+          if (base64Image) {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/face/register`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                abha_number: data.abha_number,
+                image_base64: base64Image
+              })
+            }).catch(e => console.warn("Face registration failed", e));
+          }
+
           speak(`Aapka profile ban gaya. Ab aap department select kar sakte hain.`);
           setState("DONE");
           setTimeout(() => {
@@ -200,6 +244,11 @@ export default function AssistantOnboardingPage() {
         >
           <ArrowLeft className="mr-2" /> Cancel / रद्द करें
         </button>
+      </div>
+      
+      {/* Hidden camera preview to keep track active */}
+      <div className="absolute top-6 right-6 w-32 h-32 rounded-full overflow-hidden border-4 border-slate-800 opacity-80 pointer-events-none">
+        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-3xl text-center w-full">
