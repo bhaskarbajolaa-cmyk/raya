@@ -9,6 +9,9 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [otpStep, setOtpStep] = useState(false);
+  const [expectedOtp, setExpectedOtp] = useState("");
+  const [enteredOtp, setEnteredOtp] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const [formData, setFormData] = useState({
@@ -42,8 +45,36 @@ export default function RegisterPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/abha/send_otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile_number: formData.mobile_number })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to send OTP");
+      
+      setExpectedOtp(data.otp);
+      setOtpStep(true);
+    } catch (error: any) {
+      setErrorMsg(error.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOTPAndRegister = async () => {
+    if (enteredOtp !== expectedOtp) {
+      setErrorMsg("Invalid OTP. Please try again.");
+      return;
+    }
+    
     setLoading(true);
     setErrorMsg("");
 
@@ -121,9 +152,11 @@ export default function RegisterPage() {
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-10">
         
         {/* Left Side: Form */}
-        <div className="glass-panel p-10 rounded-3xl border-t-4 border-t-sky-500">
-          <h3 className="text-2xl font-semibold mb-6">Create ABHA ID</h3>
-          <form onSubmit={handleRegister} className="flex flex-col gap-4">
+        <div className="glass-panel p-10 rounded-3xl border-t-4 border-t-sky-500 relative">
+          {!otpStep ? (
+            <>
+              <h3 className="text-2xl font-semibold mb-6">Create ABHA ID</h3>
+              <form onSubmit={handleSendOTP} className="flex flex-col gap-4">
             <div>
               <label className="block text-slate-400 mb-1 text-sm">Full Name</label>
               <input type="text" name="full_name" required onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-sky-500" placeholder="John Doe" />
@@ -158,10 +191,33 @@ export default function RegisterPage() {
             </div>
 
             <button type="submit" disabled={loading} className="w-full bg-sky-500 hover:bg-sky-400 text-white font-bold py-4 rounded-xl text-lg mt-4 transition-all">
-              {loading ? "Registering..." : "Create ABHA & Register"}
+              {loading ? "Sending OTP..." : "Send OTP to Mobile"}
             </button>
             {errorMsg && <p className="text-red-400 text-center text-sm">{errorMsg}</p>}
           </form>
+          </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <h3 className="text-2xl font-semibold mb-4">Enter OTP</h3>
+              <p className="text-slate-400 mb-6">An OTP has been sent to {formData.mobile_number}</p>
+              <input 
+                type="text" 
+                maxLength={6}
+                value={enteredOtp}
+                onChange={(e) => setEnteredOtp(e.target.value)} 
+                className="w-full max-w-[200px] text-center bg-slate-900 border border-slate-700 rounded-lg p-4 text-white text-2xl tracking-widest focus:outline-none focus:border-sky-500 mb-6" 
+                placeholder="000000" 
+              />
+              <button 
+                onClick={verifyOTPAndRegister}
+                disabled={loading || enteredOtp.length !== 6} 
+                className="w-full max-w-[200px] bg-teal-500 hover:bg-teal-400 disabled:opacity-50 text-white font-bold py-4 rounded-xl text-lg transition-all"
+              >
+                {loading ? "Verifying..." : "Verify & Register"}
+              </button>
+              {errorMsg && <p className="text-red-400 text-center text-sm mt-4">{errorMsg}</p>}
+            </div>
+          )}
         </div>
 
         {/* Right Side: Face Capture */}

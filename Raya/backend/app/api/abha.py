@@ -1,5 +1,6 @@
 import random
 import json
+import requests
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_abha_db
@@ -8,6 +9,9 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 router = APIRouter()
+
+class OTPSendRequest(BaseModel):
+    mobile_number: str
 
 class ABHARegisterRequest(BaseModel):
     full_name: str
@@ -27,6 +31,25 @@ class ABHAProfileResponse(BaseModel):
 class ConsentRequest(BaseModel):
     abha_number: str
     consent_id: str
+
+@router.post("/send_otp")
+def send_otp(req: OTPSendRequest):
+    otp_code = str(random.randint(100000, 999999))
+    url = "https://www.fast2sms.com/dev/bulkV2"
+    payload = f"variables_values={otp_code}&route=otp&numbers={req.mobile_number}"
+    headers = {
+        'authorization': "eyAjunmqDkoR1iO8g7a256TtESMsZvbzFKlCc0XPWJLfxHBQIwjAy6HnJah82bG7uwsz1M40CDRI59qT",
+        'Content-Type': "application/x-www-form-urlencoded",
+        'Cache-Control': "no-cache",
+    }
+    try:
+        response = requests.request("POST", url, data=payload, headers=headers)
+        if response.status_code == 200:
+            return {"success": True, "otp": otp_code, "message": "OTP sent successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to send OTP via Fast2SMS")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/profile/{abha_number}", response_model=ABHAProfileResponse)
 def get_patient_profile(abha_number: str, db: Session = Depends(get_abha_db)):
