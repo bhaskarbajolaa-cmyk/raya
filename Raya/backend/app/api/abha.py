@@ -41,27 +41,31 @@ def send_otp(req: OTPSendRequest):
     if len(clean_num) > 10:
         clean_num = clean_num[-10:]
         
-    url = "https://www.fast2sms.com/dev/bulkV2"
+    import os
+    TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+    TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+    TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+    
+    if not TWILIO_ACCOUNT_SID:
+        raise HTTPException(status_code=500, detail="Twilio credentials not configured")
+        
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
     payload = {
-        "message": f"Your RAYA ABHA verification OTP is {otp_code}. Do not share this with anyone.",
-        "language": "english",
-        "route": "q",
-        "numbers": clean_num
+        "Body": f"Your RAYA ABHA verification OTP is {otp_code}. Do not share this with anyone.",
+        "From": TWILIO_PHONE_NUMBER,
+        "To": f"+91{clean_num}"  # Prepending +91 since this is for India
     }
-    headers = {
-        'authorization': "eyAjunmqDkoR1iO8g7a256TtESMsZvbzFKlCc0XPWJLfxHBQIwjAy6HnJah82bG7uwsz1M40CDRI59qT",
-        'Cache-Control': "no-cache",
-    }
+    
     try:
-        response = requests.post(url, data=payload, headers=headers)
+        response = requests.post(url, data=payload, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
         res_json = response.json()
         
-        # Fast2SMS often returns 200 even for errors, but sets 'return' to False in JSON
-        if response.status_code == 200 and res_json.get('return') == True:
+        # Twilio returns 201 Created on success
+        if response.status_code in [200, 201]:
             return {"success": True, "otp": otp_code, "message": "OTP sent successfully"}
         else:
             err_msg = res_json.get('message', response.text)
-            raise HTTPException(status_code=400, detail=f"Fast2SMS Error: {err_msg}")
+            raise HTTPException(status_code=400, detail=f"Twilio Error: {err_msg}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
