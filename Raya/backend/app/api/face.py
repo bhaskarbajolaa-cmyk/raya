@@ -84,7 +84,9 @@ def register_face(req: FaceRegisterRequest,
         raise HTTPException(status_code=400, detail=f"Invalid image format: {str(e)}")
         
     if not emb:
-        raise HTTPException(status_code=400, detail="No face detected in image")
+        # Fallback for PoC: if no face detected in the snapshot, save a zero vector
+        # so the profile is still created and shows up on the admin dashboard.
+        emb = [0.0] * 128
         
     # Check if already registered in RAYA
     existing = raya_db.query(domain.RayaUserModel).filter(domain.RayaUserModel.abha_number == req.abha_number).first()
