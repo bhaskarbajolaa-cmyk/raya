@@ -7,6 +7,7 @@ import { useVoice } from "../../hooks/useVoice";
 
 type OnboardingState = 
   "INIT" | 
+  "NAME_RECORDING" | "NAME_CONFIRM" |
   "AADHAAR_RECORDING" | "AADHAAR_CONFIRM" | 
   "MOBILE_RECORDING" | "MOBILE_CONFIRM" | 
   "OTP_RECORDING" | "OTP_CONFIRM" | 
@@ -17,6 +18,7 @@ export default function AssistantOnboardingPage() {
   const { isListening, transcript, startListening, stopListening, speak, resetTranscript } = useVoice();
   
   const [state, setState] = useState<OnboardingState>("INIT");
+  const [name, setName] = useState("");
   const [aadhaar, setAadhaar] = useState("");
   const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
@@ -29,8 +31,8 @@ export default function AssistantOnboardingPage() {
       if (initFired.current) return;
       initFired.current = true;
       setTimeout(() => {
-        speak("Aap naye lag rahe hain. Kripya apna aadhaar number record karein. Neeche diye button ko dabayein.");
-        setState("AADHAAR_RECORDING");
+        speak("Aap naye lag rahe hain. Kripya apna naam record karein. Neeche diye button ko dabayein.");
+        setState("NAME_RECORDING");
       }, 1000);
     }
   }, [state, speak]);
@@ -39,7 +41,16 @@ export default function AssistantOnboardingPage() {
     if (isListening) {
       stopListening();
       // Transition to confirm state based on current recording state
-      if (state === "AADHAAR_RECORDING") {
+      if (state === "NAME_RECORDING") {
+        if (transcript.length > 2) {
+          setName(transcript);
+          speak(`Aapne kaha ${transcript}. Kya ye sahi hai? Confirm dabayein.`);
+          setState("NAME_CONFIRM");
+        } else {
+          speak("Naam samajh nahi aaya. Kripya wapas record karein.");
+          resetTranscript();
+        }
+      } else if (state === "AADHAAR_RECORDING") {
         const digits = transcript.replace(/\D/g, '');
         if (digits.length >= 10) {
           setAadhaar(digits);
@@ -77,7 +88,11 @@ export default function AssistantOnboardingPage() {
   };
 
   const handleConfirm = async () => {
-    if (state === "AADHAAR_CONFIRM") {
+    if (state === "NAME_CONFIRM") {
+      speak("Dhanyawad. Ab apna dus anko ka aadhaar number record karein.");
+      resetTranscript();
+      setState("AADHAAR_RECORDING");
+    } else if (state === "AADHAAR_CONFIRM") {
       speak("Dhanyawad. Ab apna dus anko ka mobile number record karein.");
       resetTranscript();
       setState("MOBILE_RECORDING");
@@ -120,11 +135,11 @@ export default function AssistantOnboardingPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            full_name: "Voice User",
-            date_of_birth: "1990-01-01",
+            full_name: name || "Voice User",
+            aadhaar_number: aadhaar,
             gender: "M",
             mobile_number: mobile,
-            preferred_address_prefix: "voice_user"
+            preferred_address_prefix: (name || "voice_user").replace(/\s/g, '').toLowerCase()
           })
         });
         
@@ -148,6 +163,7 @@ export default function AssistantOnboardingPage() {
 
   const handleRetry = () => {
     resetTranscript();
+    if (state === "NAME_CONFIRM") setState("NAME_RECORDING");
     if (state === "AADHAAR_CONFIRM") setState("AADHAAR_RECORDING");
     if (state === "MOBILE_CONFIRM") setState("MOBILE_RECORDING");
     if (state === "OTP_CONFIRM") setState("OTP_RECORDING");
@@ -156,11 +172,13 @@ export default function AssistantOnboardingPage() {
   const getTitle = () => {
     switch (state) {
       case "INIT": return "Starting Assistant...";
-      case "AADHAAR_RECORDING": return "Step 1: Record Aadhaar";
+      case "NAME_RECORDING": return "Step 1: Record Name";
+      case "NAME_CONFIRM": return "Verify Name";
+      case "AADHAAR_RECORDING": return "Step 2: Record Aadhaar";
       case "AADHAAR_CONFIRM": return "Verify Aadhaar";
-      case "MOBILE_RECORDING": return "Step 2: Record Mobile";
+      case "MOBILE_RECORDING": return "Step 3: Record Mobile";
       case "MOBILE_CONFIRM": return "Verify Mobile";
-      case "OTP_RECORDING": return "Step 3: Record OTP";
+      case "OTP_RECORDING": return "Step 4: Record OTP";
       case "OTP_CONFIRM": return "Verify OTP";
       case "SUBMIT": return "Creating Profile...";
       case "DONE": return "Profile Created!";
@@ -224,6 +242,7 @@ export default function AssistantOnboardingPage() {
             <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl w-full max-w-lg mb-8 shadow-2xl">
               <p className="text-slate-400 mb-2 text-lg">Did you say:</p>
               <p className="text-4xl font-bold text-sky-400 tracking-wider">
+                {state === "NAME_CONFIRM" && name}
                 {state === "AADHAAR_CONFIRM" && aadhaar}
                 {state === "MOBILE_CONFIRM" && mobile}
                 {state === "OTP_CONFIRM" && otp}
