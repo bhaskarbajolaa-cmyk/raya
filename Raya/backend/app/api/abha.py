@@ -35,8 +35,14 @@ class ConsentRequest(BaseModel):
 @router.post("/send_otp")
 def send_otp(req: OTPSendRequest):
     otp_code = str(random.randint(100000, 999999))
+    
+    # Clean mobile number: remove spaces, +91, etc. Just keep last 10 digits
+    clean_num = ''.join(filter(str.isdigit, req.mobile_number))
+    if len(clean_num) > 10:
+        clean_num = clean_num[-10:]
+        
     url = "https://www.fast2sms.com/dev/bulkV2"
-    payload = f"variables_values={otp_code}&route=otp&numbers={req.mobile_number}"
+    payload = f"variables_values={otp_code}&route=otp&numbers={clean_num}"
     headers = {
         'authorization': "eyAjunmqDkoR1iO8g7a256TtESMsZvbzFKlCc0XPWJLfxHBQIwjAy6HnJah82bG7uwsz1M40CDRI59qT",
         'Content-Type': "application/x-www-form-urlencoded",
@@ -44,10 +50,14 @@ def send_otp(req: OTPSendRequest):
     }
     try:
         response = requests.request("POST", url, data=payload, headers=headers)
-        if response.status_code == 200:
+        res_json = response.json()
+        
+        # Fast2SMS often returns 200 even for errors, but sets 'return' to False in JSON
+        if response.status_code == 200 and res_json.get('return') == True:
             return {"success": True, "otp": otp_code, "message": "OTP sent successfully"}
         else:
-            raise HTTPException(status_code=400, detail="Failed to send OTP via Fast2SMS")
+            err_msg = res_json.get('message', response.text)
+            raise HTTPException(status_code=400, detail=f"Fast2SMS Error: {err_msg}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
