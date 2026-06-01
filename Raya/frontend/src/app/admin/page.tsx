@@ -140,6 +140,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="text-slate-400 text-sm border-b border-slate-700">
                     <th className="pb-3 font-medium">Token</th>
+                    <th className="pb-3 font-medium">Time</th>
                     <th className="pb-3 font-medium">Patient</th>
                     <th className="pb-3 font-medium">Department</th>
                     <th className="pb-3 font-medium text-right">Actions</th>
@@ -155,6 +156,9 @@ export default function AdminDashboard() {
                       className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors"
                     >
                       <td className="py-4 font-mono text-sky-400">{t.token_number}</td>
+                      <td className="py-4 text-slate-400 text-sm">
+                        {t.created_at ? new Date(t.created_at + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      </td>
                       <td className="py-4 font-medium">{t.patient_name}</td>
                       <td className="py-4 text-slate-400">{t.department}</td>
                       <td className="py-4 text-right">

@@ -38,6 +38,7 @@ class TokenResponse(BaseModel):
     queue_position: int
     estimated_wait_minutes: int
     status: str
+    created_at: Optional[datetime] = None
 
 def classify_symptoms(symptoms: str) -> str:
     symptoms = symptoms.lower()
@@ -48,16 +49,16 @@ def classify_symptoms(symptoms: str) -> str:
         if dept in symptoms:
             return dept.title() if dept != "general medicine" else "General Medicine"
 
-    # Symptom-based matches
-    if any(word in symptoms for word in ['heart', 'chest pain', 'bp', 'blood pressure']):
+    # Symptom-based matches (English + Hinglish)
+    if any(word in symptoms for word in ['heart', 'chest', 'bp', 'blood pressure', 'dil', 'chhati', 'dhadkan', 'saans', 'seene']):
         return "Cardiology"
-    if any(word in symptoms for word in ['bone', 'fracture', 'joint', 'knee', 'back pain']):
+    if any(word in symptoms for word in ['bone', 'fracture', 'joint', 'knee', 'back', 'haddi', 'ghutne', 'kamar', 'jod', 'dard', 'pair', 'haath', 'chot']):
         return "Orthopaedics"
-    if any(word in symptoms for word in ['eye', 'vision', 'blur']):
+    if any(word in symptoms for word in ['eye', 'vision', 'blur', 'aankh', 'nazar', 'dikhta', 'dekhne']):
         return "Ophthalmology"
-    if any(word in symptoms for word in ['skin', 'rash', 'itch', 'acne']):
+    if any(word in symptoms for word in ['skin', 'rash', 'itch', 'acne', 'khujli', 'daane', 'tvacha', 'chaala', 'daag']):
         return "Dermatology"
-    if any(word in symptoms for word in ['child', 'baby', 'fever child']):
+    if any(word in symptoms for word in ['child', 'baby', 'kid', 'bacha', 'bache', 'shishu']):
         return "Pediatrics"
         
     return "General Medicine"
@@ -102,7 +103,8 @@ def generate_token(req: TokenCreateRequest, db: Session = Depends(get_raya_db)):
         patient_name=req.patient_name,
         queue_position=queue_pos,
         estimated_wait_minutes=queue_pos * 15, # 15 mins per patient
-        status="WAITING"
+        status="WAITING",
+        created_at=datetime.utcnow()
     )
 
 @router.get("/queue", response_model=List[TokenResponse])
@@ -116,7 +118,8 @@ def get_queue(db: Session = Depends(get_raya_db)):
             patient_name=t.patient_name,
             queue_position=0,
             estimated_wait_minutes=0,
-            status=t.status
+            status=t.status,
+            created_at=t.created_at
         ))
     return res
 
@@ -136,7 +139,8 @@ def complete_token(token_number: str, db: Session = Depends(get_raya_db)):
         patient_name=token.patient_name,
         queue_position=0,
         estimated_wait_minutes=0,
-        status=token.status
+        status=token.status,
+        created_at=token.created_at
     )
 
 @router.delete("/queue/{token_number}")
