@@ -84,7 +84,7 @@ def classify_symptoms_with_gemini(symptoms: str) -> dict:
     if not api_key:
         return {"department": "General Medicine", "is_emergency": False, "fallback": True}
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
     prompt = f"""You are a triage assistant for a hospital kiosk.
 Analyze the following patient symptom/problem description (which may be in English, Hindi, or Hinglish):
