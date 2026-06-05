@@ -27,6 +27,7 @@ function DepartmentContent() {
   
   const { isListening, transcript, startListening, stopListening, resetTranscript, speak } = useVoice();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
   // 30-second idle timeout for touch UI
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,31 +57,78 @@ function DepartmentContent() {
     router.push(`/token?dept=${dept}&name=${patientName}&abha=${abha}`);
   };
 
+  const getLocalClassification = (text: string) => {
+    const symptoms = text.toLowerCase();
+    
+    // Direct matches
+    const validDepts = ["cardiology", "orthopaedics", "ophthalmology", "dermatology", "pediatrics", "general medicine"];
+    for (const d of validDepts) {
+      if (symptoms.includes(d)) {
+        return d === "general medicine" ? "General Medicine" : d.charAt(0).toUpperCase() + d.slice(1);
+      }
+    }
+    
+    const keywords: Record<string, string[]> = {
+      "Cardiology": ["heart", "dil", "cardio", "chest", "chest pain", "chhati", "bp", "blood pressure", "seene", "dhadkan", "saans"],
+      "Orthopaedics": ["bone", "haddi", "ortho", "joint", "knee", "pair", "haath", "kamar", "jod", "chot", "fracture"],
+      "Ophthalmology": ["eye", "aankh", "vision", "blur", "nazar", "dikhta", "dekhne"],
+      "Dermatology": ["skin", "twacha", "rash", "itch", "khujli", "derma", "acne", "daane", "daag"],
+      "Pediatrics": ["child", "baby", "bachcha", "pediatric", "kid", "bache", "shishu"]
+    };
+    for (const [dept, words] of Object.entries(keywords)) {
+      if (words.some(word => symptoms.includes(word))) {
+        return dept;
+      }
+    }
+    return "General Medicine";
+  };
+
+  const getLocalEmergencyCheck = (text: string) => {
+    const symptoms = text.toLowerCase();
+    const emergencies = ['heart attack', 'breath', 'unconscious', 'stroke', 'severe bleeding', 'accident'];
+    return emergencies.some(word => symptoms.includes(word));
+  };
+
   const handleRecordToggle = async () => {
     if (isListening) {
       stopListening();
       if (transcript.length > 3) {
         setIsProcessing(true);
         speak("Aapki samasya process ho rahi hai.");
-        // Find best department based on symptoms locally
-        const text = transcript.toLowerCase();
-        let bestDept = "General Medicine";
-        const keywords: Record<string, string[]> = {
-          "Cardiology": ["heart", "dil", "cardio", "chest", "chest pain", "chhati", "dard"],
-          "Orthopaedics": ["bone", "haddi", "ortho", "joint", "knee", "pair", "haath"],
-          "Ophthalmology": ["eye", "aankh", "vision", "blur"],
-          "Dermatology": ["skin", "twacha", "rash", "itch", "khujli", "derma"],
-          "Pediatrics": ["child", "baby", "bachcha", "pediatric"]
-        };
-        for (const [dept, words] of Object.entries(keywords)) {
-          if (words.some(word => text.includes(word))) {
-            bestDept = dept;
-            break;
+        
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const res = await fetch(`${apiUrl}/api/tokens/classify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symptoms: transcript })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            setIsProcessing(false);
+            if (data.is_emergency) {
+              speak("Emergency detected. Please proceed to the Emergency Room immediately.");
+              setShowEmergencyModal(true);
+            } else {
+              router.push(`/token?dept=${data.department}&name=${patientName}&abha=${abha}`);
+            }
+          } else {
+            throw new Error("Failed backend classification");
+          }
+        } catch (err) {
+          console.error("Gemini classification failed, falling back locally:", err);
+          // Fallback locally
+          const isEmergency = getLocalEmergencyCheck(transcript);
+          setIsProcessing(false);
+          if (isEmergency) {
+            speak("Emergency detected. Please proceed to the Emergency Room immediately.");
+            setShowEmergencyModal(true);
+          } else {
+            const bestDept = getLocalClassification(transcript);
+            router.push(`/token?dept=${bestDept}&name=${patientName}&abha=${abha}`);
           }
         }
-        
-        // Pass it to the token screen (it handles generating and printing)
-        router.push(`/token?dept=${bestDept}&name=${patientName}&abha=${abha}`);
       } else {
         speak("Aapki aawaz theek se sunai nahi di. Phir try karein.");
         resetTranscript();
@@ -177,6 +225,39 @@ function DepartmentContent() {
           </div>
         </div>
       </div>
+
+      {/* Emergency Modal */}
+      {showEmergencyModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-3xl p-8 max-w-lg w-full text-center border-t-8 border-t-rose-600 shadow-2xl relative"
+          >
+            <div className="bg-rose-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <span className="text-4xl">🚨</span>
+            </div>
+            
+            <h3 className="text-3xl font-black text-rose-600 mb-2 tracking-tight">EMERGENCY DETECTED</h3>
+            <h4 className="text-xl font-bold text-slate-800 mb-6">आपातकालीन स्थिति</h4>
+            
+            <div className="bg-rose-50 text-rose-900 rounded-2xl p-6 text-left border border-rose-100 mb-8">
+              <p className="font-bold text-lg mb-2 text-rose-800">Please proceed immediately to the Emergency Room (ER).</p>
+              <p className="text-rose-700 font-medium">कृपया तुरंत अस्पताल के आपातकालीन कक्ष (Emergency Room) में जाएँ।</p>
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowEmergencyModal(false);
+                router.push('/');
+              }}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-md hover:shadow-lg text-lg"
+            >
+              Go to Home / वापस जाएँ
+            </button>
+          </motion.div>
+        </div>
+      )}
       
     </main>
   );

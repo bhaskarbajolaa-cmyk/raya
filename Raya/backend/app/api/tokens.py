@@ -1,4 +1,7 @@
+import os
+import json
 import random
+import requests
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -31,6 +34,14 @@ class TokenCreateRequest(BaseModel):
     symptoms: str
     abha_number: Optional[str] = None
 
+class ClassifyRequest(BaseModel):
+    symptoms: str
+
+class ClassifyResponse(BaseModel):
+    department: str
+    is_emergency: bool
+
+
 class TokenResponse(BaseModel):
     token_number: str
     department: str
@@ -52,7 +63,7 @@ def classify_symptoms(symptoms: str) -> str:
     # Symptom-based matches (English + Hinglish)
     if any(word in symptoms for word in ['heart', 'chest', 'bp', 'blood pressure', 'dil', 'chhati', 'dhadkan', 'saans', 'seene']):
         return "Cardiology"
-    if any(word in symptoms for word in ['bone', 'fracture', 'joint', 'knee', 'back', 'haddi', 'ghutne', 'kamar', 'jod', 'dard', 'pair', 'haath', 'chot']):
+    if any(word in symptoms for word in ['bone', 'fracture', 'joint', 'knee', 'back', 'haddi', 'ghutne', 'kamar', 'jod', 'pair', 'haath', 'chot']):
         return "Orthopaedics"
     if any(word in symptoms for word in ['eye', 'vision', 'blur', 'aankh', 'nazar', 'dikhta', 'dekhne']):
         return "Ophthalmology"
@@ -67,6 +78,95 @@ def check_emergency(symptoms: str) -> bool:
     symptoms = symptoms.lower()
     emergencies = ['heart attack', 'breath', 'unconscious', 'stroke', 'severe bleeding', 'accident']
     return any(word in symptoms for word in emergencies)
+
+def classify_symptoms_with_gemini(symptoms: str) -> dict:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return {"department": "General Medicine", "is_emergency": False, "fallback": True}
+        
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    
+    prompt = f"""You are a triage assistant for a hospital kiosk.
+Analyze the following patient symptom/problem description (which may be in English, Hindi, or Hinglish):
+"{symptoms}"
+
+Classify this problem into one of these 6 departments:
+1. Cardiology (for heart-related issues, chest pain, palpitations, cardiovascular problems, high/low blood pressure)
+2. Orthopaedics (for bones, joints, knee pain, fractures, back pain, limb injuries, musculoskeletal issues)
+3. Ophthalmology (for eyes, vision, blurriness, cataracts, eye pain, eye redness)
+4. Dermatology (for skin, rashes, itching, acne, hair, nails, skin infections)
+5. Pediatrics (for infants, babies, children's health, child-specific issues)
+6. General Medicine (for general illness, fever, cough, stomach ache, headache, or anything that doesn't fit the above)
+
+Also determine if this is an EMERGENCY situation (e.g. chest pain, heart attack, unconsciousness, severe difficulty breathing, stroke, severe active bleeding, major accident).
+
+Respond strictly in JSON format with two keys:
+"department": must be one of the exact strings: "Cardiology", "Orthopaedics", "Ophthalmology", "Dermatology", "Pediatrics", "General Medicine"
+"is_emergency": boolean value (true or false)
+Do not include any markdown formatting or backticks like ```json. Just raw JSON.
+"""
+
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    headers = {"Content-Type": "application/json"}
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=8)
+        if response.status_code == 200:
+            res_json = response.json()
+            text = res_json['candidates'][0]['content']['parts'][0]['text'].strip()
+            
+            if text.startswith("```"):
+                text = text.split("```", 1)[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                if "```" in text:
+                    text = text.split("```", 1)[0]
+            text = text.strip()
+            
+            data = json.loads(text)
+            dept = data.get("department", "General Medicine")
+            is_emergency = data.get("is_emergency", False)
+            
+            valid_depts = ["Cardiology", "Orthopaedics", "Ophthalmology", "Dermatology", "Pediatrics", "General Medicine"]
+            if dept not in valid_depts:
+                dept = "General Medicine"
+                
+            return {"department": dept, "is_emergency": is_emergency, "fallback": False}
+        else:
+            return {"department": "General Medicine", "is_emergency": False, "fallback": True}
+    except Exception as e:
+        print(f"Gemini API error: {e}")
+        return {"department": "General Medicine", "is_emergency": False, "fallback": True}
+
+@router.post("/classify", response_model=ClassifyResponse)
+def classify_symptoms_endpoint(req: ClassifyRequest):
+    # Check for direct department matches first to save API calls
+    symptoms_lower = req.symptoms.strip().lower()
+    valid_depts = ["cardiology", "orthopaedics", "ophthalmology", "dermatology", "pediatrics", "general medicine"]
+    for d in valid_depts:
+        if d == symptoms_lower:
+            return ClassifyResponse(
+                department=d.title() if d != "general medicine" else "General Medicine",
+                is_emergency=False
+            )
+            
+    # Try Gemini classification
+    result = classify_symptoms_with_gemini(req.symptoms)
+    
+    if result.get("fallback", False):
+        # Local classification fallback
+        dept = classify_symptoms(req.symptoms)
+        is_emergency = check_emergency(req.symptoms)
+    else:
+        dept = result.get("department", "General Medicine")
+        is_emergency = result.get("is_emergency", False) or check_emergency(req.symptoms)
+        
+    return ClassifyResponse(department=dept, is_emergency=is_emergency)
 
 @router.post("/generate", response_model=TokenResponse)
 def generate_token(req: TokenCreateRequest, db: Session = Depends(get_raya_db)):
