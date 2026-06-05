@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from app.core.database import get_raya_db
 from sqlalchemy import Column, Integer, String, DateTime
-from app.models.domain import Base
+from app.models.domain import Base, DepartmentModel
 
 router = APIRouter()
 
@@ -51,57 +51,92 @@ class TokenResponse(BaseModel):
     status: str
     created_at: Optional[datetime] = None
 
-def classify_symptoms(symptoms: str) -> str:
-    symptoms = symptoms.lower()
+def classify_symptoms(symptoms: str, db: Session) -> str:
+    symptoms = symptoms.lower().strip()
+    departments = db.query(DepartmentModel).all()
     
-    # Direct Department matches (e.g. when passed from Touch UI)
-    valid_depts = ["cardiology", "orthopaedics", "ophthalmology", "dermatology", "pediatrics", "general medicine"]
-    for dept in valid_depts:
-        if dept in symptoms:
-            return dept.title() if dept != "general medicine" else "General Medicine"
-
-    # Symptom-based matches (English + Hinglish)
+    # 1. Direct name match (case-insensitive)
+    for d in departments:
+        if d.name.lower() in symptoms or d.hindi_name in symptoms:
+            return d.name
+            
+    # 2. Local symptom matches (fallback rules for default departments)
     if any(word in symptoms for word in ['heart', 'chest', 'bp', 'blood pressure', 'dil', 'chhati', 'dhadkan', 'saans', 'seene']):
-        return "Cardiology"
+        if any(d.name == "Cardiology" for d in departments):
+            return "Cardiology"
     if any(word in symptoms for word in ['bone', 'fracture', 'joint', 'knee', 'back', 'haddi', 'ghutne', 'kamar', 'jod', 'pair', 'haath', 'chot']):
-        return "Orthopaedics"
+        if any(d.name == "Orthopaedics" for d in departments):
+            return "Orthopaedics"
     if any(word in symptoms for word in ['eye', 'vision', 'blur', 'aankh', 'nazar', 'dikhta', 'dekhne']):
-        return "Ophthalmology"
+        if any(d.name == "Ophthalmology" for d in departments):
+            return "Ophthalmology"
     if any(word in symptoms for word in ['skin', 'rash', 'itch', 'acne', 'khujli', 'daane', 'tvacha', 'chaala', 'daag']):
-        return "Dermatology"
+        if any(d.name == "Dermatology" for d in departments):
+            return "Dermatology"
     if any(word in symptoms for word in ['child', 'baby', 'kid', 'bacha', 'bache', 'shishu']):
-        return "Pediatrics"
+        if any(d.name == "Pediatrics" for d in departments):
+            return "Pediatrics"
+            
+    # 3. Fallback check based on description keywords matching
+    best_match = None
+    max_matches = 0
+    for d in departments:
+        if not d.description:
+            continue
+        desc_words = [w.strip(",.() ").lower() for w in d.description.split() if len(w) > 4]
+        matches = sum(1 for w in desc_words if w in symptoms)
+        if matches > max_matches:
+            max_matches = matches
+            best_match = d.name
+            
+    if best_match and max_matches > 0:
+        return best_match
         
-    return "General Medicine"
+    # 4. Final fallback to "General Medicine" if present, else first department
+    for d in departments:
+        if d.name == "General Medicine":
+            return d.name
+    return departments[0].name if departments else "General Medicine"
 
 def check_emergency(symptoms: str) -> bool:
     symptoms = symptoms.lower()
     emergencies = ['heart attack', 'breath', 'unconscious', 'stroke', 'severe bleeding', 'accident']
     return any(word in symptoms for word in emergencies)
 
-def classify_symptoms_with_gemini(symptoms: str) -> dict:
+def classify_symptoms_with_gemini(symptoms: str, db: Session) -> dict:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return {"department": "General Medicine", "is_emergency": False, "fallback": True}
         
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
+    # Query departments dynamically
+    departments = db.query(DepartmentModel).all()
+    if not departments:
+        return {"department": "General Medicine", "is_emergency": False, "fallback": True}
+        
+    # Build list of departments and descriptions
+    dept_descriptions = []
+    dept_names = []
+    for d in departments:
+        dept_names.append(d.name)
+        desc_str = f" ({d.description})" if d.description else ""
+        dept_descriptions.append(f"- {d.name}{desc_str}")
+        
+    depts_list_str = "\n".join(dept_descriptions)
+    valid_depts_str = ", ".join([f'"{name}"' for name in dept_names])
+    
     prompt = f"""You are a triage assistant for a hospital kiosk.
 Analyze the following patient symptom/problem description (which may be in English, Hindi, or Hinglish):
 "{symptoms}"
 
-Classify this problem into one of these 6 departments:
-1. Cardiology (for heart-related issues, chest pain, palpitations, cardiovascular problems, high/low blood pressure)
-2. Orthopaedics (for bones, joints, knee pain, fractures, back pain, limb injuries, musculoskeletal issues)
-3. Ophthalmology (for eyes, vision, blurriness, cataracts, eye pain, eye redness)
-4. Dermatology (for skin, rashes, itching, acne, hair, nails, skin infections)
-5. Pediatrics (for infants, babies, children's health, child-specific issues)
-6. General Medicine (for general illness, fever, cough, stomach ache, headache, or anything that doesn't fit the above)
+Classify this problem into one of the following available departments:
+{depts_list_str}
 
 Also determine if this is an EMERGENCY situation (e.g. chest pain, heart attack, unconsciousness, severe difficulty breathing, stroke, severe active bleeding, major accident).
 
 Respond strictly in JSON format with two keys:
-"department": must be one of the exact strings: "Cardiology", "Orthopaedics", "Ophthalmology", "Dermatology", "Pediatrics", "General Medicine"
+"department": must be one of the exact strings: {valid_depts_str}
 "is_emergency": boolean value (true or false)
 Do not include any markdown formatting or backticks like ```json. Just raw JSON.
 """
@@ -129,14 +164,25 @@ Do not include any markdown formatting or backticks like ```json. Just raw JSON.
             text = text.strip()
             
             data = json.loads(text)
-            dept = data.get("department", "General Medicine")
+            dept = data.get("department", "").strip()
             is_emergency = data.get("is_emergency", False)
             
-            valid_depts = ["Cardiology", "Orthopaedics", "Ophthalmology", "Dermatology", "Pediatrics", "General Medicine"]
-            if dept not in valid_depts:
-                dept = "General Medicine"
-                
-            return {"department": dept, "is_emergency": is_emergency, "fallback": False}
+            # Match back to database casing
+            matched_dept = None
+            for d in departments:
+                if d.name.lower() == dept.lower():
+                    matched_dept = d.name
+                    break
+                    
+            if not matched_dept:
+                for d in departments:
+                    if d.name == "General Medicine":
+                        matched_dept = d.name
+                        break
+                if not matched_dept:
+                    matched_dept = departments[0].name
+                    
+            return {"department": matched_dept, "is_emergency": is_emergency, "fallback": False}
         else:
             return {"department": "General Medicine", "is_emergency": False, "fallback": True}
     except Exception as e:
@@ -144,23 +190,23 @@ Do not include any markdown formatting or backticks like ```json. Just raw JSON.
         return {"department": "General Medicine", "is_emergency": False, "fallback": True}
 
 @router.post("/classify", response_model=ClassifyResponse)
-def classify_symptoms_endpoint(req: ClassifyRequest):
+def classify_symptoms_endpoint(req: ClassifyRequest, db: Session = Depends(get_raya_db)):
     # Check for direct department matches first to save API calls
     symptoms_lower = req.symptoms.strip().lower()
-    valid_depts = ["cardiology", "orthopaedics", "ophthalmology", "dermatology", "pediatrics", "general medicine"]
-    for d in valid_depts:
-        if d == symptoms_lower:
+    departments = db.query(DepartmentModel).all()
+    for d in departments:
+        if d.name.lower() == symptoms_lower or d.hindi_name == symptoms_lower:
             return ClassifyResponse(
-                department=d.title() if d != "general medicine" else "General Medicine",
+                department=d.name,
                 is_emergency=False
             )
             
     # Try Gemini classification
-    result = classify_symptoms_with_gemini(req.symptoms)
+    result = classify_symptoms_with_gemini(req.symptoms, db)
     
     if result.get("fallback", False):
         # Local classification fallback
-        dept = classify_symptoms(req.symptoms)
+        dept = classify_symptoms(req.symptoms, db)
         is_emergency = check_emergency(req.symptoms)
     else:
         dept = result.get("department", "General Medicine")
@@ -176,7 +222,7 @@ def generate_token(req: TokenCreateRequest, db: Session = Depends(get_raya_db)):
             detail="EMERGENCY_DETECTED: Please proceed immediately to the Emergency Room."
         )
         
-    department = classify_symptoms(req.symptoms)
+    department = classify_symptoms(req.symptoms, db)
     
     token_num = f"TK-{department[:3].upper()}-{random.randint(1000, 9999)}"
     

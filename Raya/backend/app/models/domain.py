@@ -22,3 +22,15 @@ class RayaUserModel(Base):
     abha_number = Column(String, nullable=True)
     last_checkin = Column(DateTime, server_default=func.now())
     created_at = Column(DateTime, server_default=func.now())
+
+class DepartmentModel(Base):
+    __tablename__ = "hospital_departments"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    hindi_name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    icon = Column(String, default="Stethoscope")
+    color = Column(String, default="text-teal-500")
+    bg_color = Column(String, default="bg-teal-500/10")
+

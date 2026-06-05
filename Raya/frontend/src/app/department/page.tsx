@@ -2,22 +2,13 @@
 
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, HeartPulse, Bone, Eye, Sparkles, Stethoscope, Baby } from "lucide-react";
-
-const DEPARTMENTS = [
-  { id: "Cardiology", name: "Cardiology", hindi: "हृदय रोग", icon: HeartPulse, color: "text-rose-500", bg: "bg-rose-500/10" },
-  { id: "Orthopaedics", name: "Orthopaedics", hindi: "हड्डी रोग", icon: Bone, color: "text-amber-500", bg: "bg-amber-500/10" },
-  { id: "Ophthalmology", name: "Ophthalmology", hindi: "नेत्र रोग", icon: Eye, color: "text-blue-500", bg: "bg-blue-500/10" },
-  { id: "Dermatology", name: "Dermatology", hindi: "त्वचा रोग", icon: Sparkles, color: "text-purple-500", bg: "bg-purple-500/10" },
-  { id: "Pediatrics", name: "Pediatrics", hindi: "बाल रोग", icon: Baby, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  { id: "General Medicine", name: "General Medicine", hindi: "सामान्य चिकित्सा", icon: Stethoscope, color: "text-teal-500", bg: "bg-teal-500/10" },
-];
+import { ArrowLeft, User, Mic, MicOff, Loader2 } from "lucide-react";
+import * as Icons from "lucide-react";
 
 import { useEffect, useRef, useState } from "react";
-import { User, Mic, MicOff, Loader2 } from "lucide-react";
 import { useVoice } from "../../hooks/useVoice";
-
 import { Suspense } from "react";
+
 
 function DepartmentContent() {
   const router = useRouter();
@@ -28,6 +19,33 @@ function DepartmentContent() {
   const { isListening, transcript, startListening, stopListening, resetTranscript, speak } = useVoice();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+
+  const DEFAULT_DEPARTMENTS = [
+    { id: 1, name: "Cardiology", hindi_name: "हृदय रोग", icon: "HeartPulse", color: "text-rose-500", bg_color: "bg-rose-500/10", description: "For heart-related issues, chest pain, palpitations, cardiovascular problems, high/low blood pressure" },
+    { id: 2, name: "Orthopaedics", hindi_name: "हड्डी रोग", icon: "Bone", color: "text-amber-500", bg_color: "bg-amber-500/10", description: "For bones, joints, knee pain, fractures, back pain, limb injuries, musculoskeletal issues" },
+    { id: 3, name: "Ophthalmology", hindi_name: "नेत्र रोग", icon: "Eye", color: "text-blue-500", bg_color: "bg-blue-500/10", description: "For eyes, vision, blurriness, cataracts, eye pain, eye redness" },
+    { id: 4, name: "Dermatology", hindi_name: "त्वचा रोग", icon: "Sparkles", color: "text-purple-500", bg_color: "bg-purple-500/10", description: "For skin, rashes, itching, acne, hair, nails, skin infections" },
+    { id: 5, name: "Pediatrics", hindi_name: "बाल रोग", icon: "Baby", color: "text-emerald-500", bg_color: "bg-emerald-500/10", description: "For infants, babies, children's health, child-specific issues" },
+    { id: 6, name: "General Medicine", hindi_name: "सामान्य चिकित्सा", icon: "Stethoscope", color: "text-teal-500", bg_color: "bg-teal-500/10", description: "For general illness, fever, cough, stomach ache, headache, or anything that doesn't fit the above" },
+  ];
+
+  const [departments, setDepartments] = useState<any[]>(DEFAULT_DEPARTMENTS);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const res = await fetch(`${apiUrl}/api/departments`);
+        if (res.ok) {
+          const data = await res.json();
+          setDepartments(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch departments:", err);
+      }
+    };
+    fetchDepartments();
+  }, []);
 
   // 30-second idle timeout for touch UI
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,16 +76,16 @@ function DepartmentContent() {
   };
 
   const getLocalClassification = (text: string) => {
-    const symptoms = text.toLowerCase();
+    const symptoms = text.toLowerCase().trim();
     
-    // Direct matches
-    const validDepts = ["cardiology", "orthopaedics", "ophthalmology", "dermatology", "pediatrics", "general medicine"];
-    for (const d of validDepts) {
-      if (symptoms.includes(d)) {
-        return d === "general medicine" ? "General Medicine" : d.charAt(0).toUpperCase() + d.slice(1);
+    // 1. Direct name match
+    for (const d of departments) {
+      if (symptoms.includes(d.name.toLowerCase()) || symptoms.includes(d.hindi_name.toLowerCase())) {
+        return d.name;
       }
     }
     
+    // 2. Default keywords fallback
     const keywords: Record<string, string[]> = {
       "Cardiology": ["heart", "dil", "cardio", "chest", "chest pain", "chhati", "bp", "blood pressure", "seene", "dhadkan", "saans"],
       "Orthopaedics": ["bone", "haddi", "ortho", "joint", "knee", "pair", "haath", "kamar", "jod", "chot", "fracture"],
@@ -75,12 +93,31 @@ function DepartmentContent() {
       "Dermatology": ["skin", "twacha", "rash", "itch", "khujli", "derma", "acne", "daane", "daag"],
       "Pediatrics": ["child", "baby", "bachcha", "pediatric", "kid", "bache", "shishu"]
     };
-    for (const [dept, words] of Object.entries(keywords)) {
+    for (const [deptName, words] of Object.entries(keywords)) {
       if (words.some(word => symptoms.includes(word))) {
-        return dept;
+        if (departments.some(d => d.name === deptName)) {
+          return deptName;
+        }
       }
     }
-    return "General Medicine";
+    
+    // 3. Fallback description keywords matching
+    let bestMatch = null;
+    let maxMatches = 0;
+    for (const d of departments) {
+      if (!d.description) continue;
+      const descWords = d.description.toLowerCase().split(/\s+/).filter((w: string) => w.length > 4);
+      const matches = descWords.filter((w: string) => symptoms.includes(w)).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        bestMatch = d.name;
+      }
+    }
+    if (bestMatch && maxMatches > 0) return bestMatch;
+    
+    // 4. Default fallback to General Medicine
+    const genMed = departments.find(d => d.name === "General Medicine");
+    return genMed ? genMed.name : (departments[0]?.name || "General Medicine");
   };
 
   const getLocalEmergencyCheck = (text: string) => {
@@ -174,24 +211,24 @@ function DepartmentContent() {
 
       {/* Manual Department Grid */}
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-32 z-10">
-        {DEPARTMENTS.map((dept, idx) => {
-          const Icon = dept.icon;
+        {departments.map((dept, idx) => {
+          const IconComponent = (Icons as any)[dept.icon] || Icons.Stethoscope;
           return (
-              <motion.div
+            <motion.div
               key={dept.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
+              transition={{ delay: idx * 0.05 }}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => handleSelect(dept.id)}
+              onClick={() => handleSelect(dept.name)}
               className="glass-panel p-6 cursor-pointer hover:border-blue-600 hover:shadow-md transition-all group flex flex-col items-center text-center"
             >
-              <div className={`${dept.bg} ${dept.color} p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform`}>
-                <Icon className="w-10 h-10" />
+              <div className={`${dept.bg_color || "bg-teal-500/10"} ${dept.color || "text-teal-500"} p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform`}>
+                <IconComponent className="w-10 h-10" />
               </div>
               <h3 className="text-xl font-bold mb-1 text-slate-900">{dept.name}</h3>
-              <h4 className="text-lg text-slate-600 font-medium">{dept.hindi}</h4>
+              <h4 className="text-lg text-slate-600 font-medium">{dept.hindi_name}</h4>
             </motion.div>
           );
         })}
