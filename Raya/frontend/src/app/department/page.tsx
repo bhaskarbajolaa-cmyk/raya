@@ -98,20 +98,20 @@ function DepartmentContent() {
       <div className="w-full max-w-5xl flex justify-between items-center mb-10 z-10">
         <button 
           onClick={() => router.back()}
-          className="flex items-center text-slate-400 hover:text-white transition-colors"
+          className="flex items-center text-slate-500 hover:text-blue-900 transition-colors font-medium"
         >
           <ArrowLeft className="mr-2" /> Back / वापस जाएँ
         </button>
 
         {/* User Indication Top Right */}
-        <div className="flex items-center bg-slate-800/50 px-5 py-3 rounded-2xl border border-slate-700 shadow-lg">
-          <User className="w-8 h-8 text-teal-400 mr-3" />
+        <div className="flex items-center bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm">
+          <User className="w-8 h-8 text-emerald-600 mr-3" />
           <div className="flex flex-col text-left">
-            <span className="text-white font-medium text-sm">
-              Welcome, <span className="text-teal-400 text-base">{patientName}</span>
+            <span className="text-slate-900 font-medium text-sm">
+              Welcome, <span className="text-emerald-700 text-base">{patientName}</span>
             </span>
             {abha && (
-              <span className="text-slate-400 text-xs font-mono mt-0.5 tracking-wider">
+              <span className="text-slate-500 text-xs font-mono mt-0.5 tracking-wider">
                 ABHA: {abha}
               </span>
             )}
@@ -120,8 +120,8 @@ function DepartmentContent() {
       </div>
 
       <div className="text-center mb-10 relative z-10">
-        <h2 className="text-3xl font-bold mb-2">Select Department or Record Symptoms</h2>
-        <p className="text-sky-400">विभाग चुनें या अपनी समस्या रिकॉर्ड करें</p>
+        <h2 className="text-3xl font-bold mb-2 text-slate-900">Select Department or Record Symptoms</h2>
+        <p className="text-blue-700 font-medium">विभाग चुनें या अपनी समस्या रिकॉर्ड करें</p>
       </div>
 
       {/* Manual Department Grid */}
@@ -129,7 +129,7 @@ function DepartmentContent() {
         {DEPARTMENTS.map((dept, idx) => {
           const Icon = dept.icon;
           return (
-            <motion.div
+              <motion.div
               key={dept.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -137,41 +137,41 @@ function DepartmentContent() {
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleSelect(dept.id)}
-              className="glass-panel p-6 rounded-3xl cursor-pointer hover:border-slate-600 transition-all group flex flex-col items-center text-center"
+              className="glass-panel p-6 cursor-pointer hover:border-blue-600 hover:shadow-md transition-all group flex flex-col items-center text-center"
             >
               <div className={`${dept.bg} ${dept.color} p-4 rounded-2xl mb-4 group-hover:scale-110 transition-transform`}>
                 <Icon className="w-10 h-10" />
               </div>
-              <h3 className="text-xl font-bold mb-1">{dept.name}</h3>
-              <h4 className="text-lg text-slate-400">{dept.hindi}</h4>
+              <h3 className="text-xl font-bold mb-1 text-slate-900">{dept.name}</h3>
+              <h4 className="text-lg text-slate-600 font-medium">{dept.hindi}</h4>
             </motion.div>
           );
         })}
       </div>
 
       {/* Floating Push-to-Talk Record Button */}
-      <div className="fixed bottom-0 left-0 w-full bg-slate-900/80 backdrop-blur-md border-t border-slate-800 p-6 flex flex-col items-center z-50">
+      <div className="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-slate-200 p-6 flex flex-col items-center z-50 shadow-lg">
         <div className="flex items-center justify-center gap-6">
           <button
             onClick={handleRecordToggle}
-            className={`relative flex items-center justify-center w-20 h-20 rounded-full transition-all duration-300 ${
-              isListening ? 'bg-rose-500/20 border-4 border-rose-500 animate-pulse' : 'bg-teal-500 hover:bg-teal-400'
+            className={`relative flex items-center justify-center w-20 h-20 rounded-full transition-all duration-300 shadow-md ${
+              isListening ? 'bg-rose-100 border-4 border-rose-500 animate-pulse' : 'bg-emerald-600 hover:bg-emerald-500'
             }`}
           >
             {isProcessing ? (
                <Loader2 className="w-8 h-8 text-white animate-spin" />
             ) : isListening ? (
-               <Mic className="w-10 h-10 text-rose-400" />
+               <Mic className="w-10 h-10 text-rose-600" />
             ) : (
                <Mic className="w-10 h-10 text-white" />
             )}
           </button>
           
           <div className="flex flex-col">
-             <span className="text-xl font-bold text-white">
+             <span className="text-xl font-bold text-slate-900">
                {isListening ? "Listening..." : "Or Tap to Explain Your Problem"}
              </span>
-             <span className="text-slate-400 italic">
+             <span className="text-slate-600 italic">
                {isListening && transcript ? `"${transcript}"` : (isListening ? "Speak now, tap again to stop..." : "Bataein aapko kya samasya hai")}
              </span>
           </div>
@@ -184,7 +184,7 @@ function DepartmentContent() {
 
 export default function DepartmentPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xl">Loading department...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-900 text-xl font-medium">Loading department...</div>}>
       <DepartmentContent />
     </Suspense>
   );

@@ -13,16 +13,16 @@
 }
 
 :root {
-  /* Sleek modern hospital theme: deep rich dark mode base with vibrant teal/blue accents */
-  --background: #0f172a; /* slate-900 */
-  --foreground: #f8fafc; /* slate-50 */
-  --primary: #0ea5e9; /* sky-500 */
-  --primary-dark: #0284c7; /* sky-600 */
-  --secondary: #1e293b; /* slate-800 */
-  --accent: #14b8a6; /* teal-500 */
-  --success: #22c55e; /* green-500 */
+  /* Crisp Corporate Healthcare Theme: Stark white backgrounds with Deep Navy and Cyan accents */
+  --background: #f8fafc; /* slate-50 (Very light gray/white background) */
+  --foreground: #0f172a; /* slate-900 (Dark text) */
+  --primary: #1e3a8a; /* blue-900 (Deep Navy Branding) */
+  --primary-dark: #172554; /* blue-950 (Darker Navy) */
+  --secondary: #ffffff; /* white (For clean cards and surfaces) */
+  --accent: #0ea5e9; /* sky-500 (Vibrant cyan/blue highlight) */
+  --success: #10b981; /* emerald-500 (Clean verification green) */
   --danger: #ef4444; /* red-500 */
-  --surface: #1e293b; /* slate-800 for cards */
+  --surface: #ffffff; /* white for cards */
 }
 
 body {
@@ -50,10 +50,10 @@ body {
 
 /* Micro-animations and utility classes */
 .glass-panel {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  background: #ffffff;
+  border: 1px solid #e2e8f0; /* slate-200 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 1rem;
 }
 
 .glow-text {

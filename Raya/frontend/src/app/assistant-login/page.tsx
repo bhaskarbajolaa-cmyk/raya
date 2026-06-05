@@ -89,27 +89,27 @@ export default function AssistantLoginPage() {
   }, [router]);
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center justify-center p-6 bg-slate-950 text-white">
-      <div className="absolute inset-0 bg-teal-500/10 blur-[100px] pointer-events-none" />
+    <main className="relative min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 text-slate-900">
+      <div className="absolute inset-0 bg-purple-600/10 blur-[100px] pointer-events-none" />
       
       <div className="z-10 flex flex-col items-center max-w-md w-full text-center">
-        <div className="relative w-64 h-64 rounded-full border-4 border-teal-500/30 overflow-hidden flex items-center justify-center bg-slate-900 mb-8 shadow-[0_0_50px_rgba(20,184,166,0.2)]">
+        <div className="relative w-64 h-64 rounded-full border-4 border-purple-600/30 overflow-hidden flex items-center justify-center bg-purple-50 mb-8 shadow-md">
           <video 
             ref={videoRef}
             autoPlay 
             playsInline 
             muted 
-            className="absolute inset-0 w-full h-full object-cover opacity-60"
+            className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute w-full h-1 bg-teal-400 shadow-[0_0_20px_#2dd4bf] animate-[scan_2s_ease-in-out_infinite] z-10" />
-          <ScanFace className="w-20 h-20 text-teal-500/30 absolute z-0" />
+          <div className="absolute w-full h-1 bg-purple-500 shadow-[0_0_20px_#a855f7] animate-[scan_2s_ease-in-out_infinite] z-10" />
+          <ScanFace className="w-20 h-20 text-purple-600/30 absolute z-0" />
         </div>
 
-        <h2 className="text-3xl font-bold mb-4 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 mr-3 animate-spin text-teal-400" />
+        <h2 className="text-3xl font-bold mb-4 flex items-center justify-center text-slate-900">
+          <Loader2 className="w-8 h-8 mr-3 animate-spin text-purple-600" />
           {statusText}
         </h2>
-        <p className="text-slate-400 text-lg">Looking for your profile...</p>
+        <p className="text-slate-600 text-lg">Looking for your profile...</p>
       </div>
     </main>
   );
