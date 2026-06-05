@@ -45,53 +45,7 @@ function TokenContent() {
     generateToken();
 
     // Auto-return to home after 15 seconds
-"use client";
 
-import { useEffect, useState, useRef } from "react";
-import { motion } from "framer-motion";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Printer, CheckCircle, Clock, Users } from "lucide-react";
-
-import { Suspense } from "react";
-
-function TokenContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [tokenData, setTokenData] = useState<any>(null);
-  const hasFetched = useRef(false);
-
-  useEffect(() => {
-    if (hasFetched.current) return;
-    hasFetched.current = true;
-
-    const generateToken = async () => {
-      const dept = searchParams.get('dept') || "General Medicine";
-      const name = searchParams.get('name') || "Guest";
-      const abha = searchParams.get('abha') || "";
-      
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/tokens/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patient_name: name,
-            symptoms: dept, // We pass dept as symptoms so backend classifies it correctly
-            abha_number: abha
-          })
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setTokenData(data);
-        }
-      } catch (err) {
-        console.error("Failed to generate token", err);
-      }
-    };
-    
-    generateToken();
-
-    // Auto-return to home after 15 seconds
     const timeout = setTimeout(() => router.push('/'), 15000);
     return () => clearTimeout(timeout);
   }, [searchParams, router]);
