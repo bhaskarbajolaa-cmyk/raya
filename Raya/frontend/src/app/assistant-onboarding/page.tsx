@@ -236,7 +236,7 @@ export default function AssistantOnboardingPage() {
   const isConfirmState = state.includes("CONFIRM");
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center py-10 px-6 bg-slate-950 text-white">
+    <main className="relative min-h-screen flex flex-col items-center py-10 px-6 bg-slate-50 text-slate-900">
       
       <div className="w-full max-w-5xl flex justify-between items-center mb-10">
         <button 
@@ -244,20 +244,20 @@ export default function AssistantOnboardingPage() {
             stopListening();
             router.push('/');
           }}
-          className="flex items-center text-slate-400 hover:text-white transition-colors"
+          className="flex items-center text-slate-500 hover:text-blue-900 transition-colors font-medium"
         >
           <ArrowLeft className="mr-2" /> Cancel / रद्द करें
         </button>
       </div>
       
       {/* Hidden camera preview to keep track active */}
-      <div className="absolute top-6 right-6 w-32 h-32 rounded-full overflow-hidden border-4 border-slate-800 opacity-80 pointer-events-none">
+      <div className="absolute top-6 right-6 w-32 h-32 rounded-full overflow-hidden border-4 border-slate-300 opacity-80 pointer-events-none">
         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-3xl text-center w-full">
         
-        <h2 className="text-3xl font-bold mb-12 text-white">
+        <h2 className="text-3xl font-bold mb-12 text-slate-900">
           {getTitle()}
         </h2>
         
@@ -273,18 +273,18 @@ export default function AssistantOnboardingPage() {
                   <div className="absolute inset-0 border-[6px] border-rose-500 rounded-full animate-ping opacity-40" />
                 </>
               )}
-              <div className={`w-48 h-48 rounded-full flex items-center justify-center transition-all duration-300 z-10 relative ${
-                isListening ? 'bg-rose-500/20 shadow-[0_0_50px_#f43f5e]' : 'bg-slate-800 group-hover:bg-slate-700 border-4 border-slate-600'
+              <div className={`w-48 h-48 rounded-full flex items-center justify-center transition-all duration-300 z-10 relative shadow-sm ${
+                isListening ? 'bg-rose-100 shadow-[0_0_50px_#f43f5e]' : 'bg-slate-100 group-hover:bg-slate-200 border-4 border-slate-300'
               }`}>
                 {isListening ? (
-                  <Mic className="w-24 h-24 text-rose-400 animate-pulse" />
+                  <Mic className="w-24 h-24 text-rose-600 animate-pulse" />
                 ) : (
-                  <MicOff className="w-24 h-24 text-slate-500" />
+                  <MicOff className="w-24 h-24 text-slate-600" />
                 )}
               </div>
             </div>
             
-            <p className="mt-8 text-2xl font-medium text-slate-400">
+            <p className="mt-8 text-2xl font-medium text-slate-600">
               {isListening ? "Listening... Tap to Stop" : "Tap Mic to Record"}
             </p>
           </div>
@@ -292,9 +292,9 @@ export default function AssistantOnboardingPage() {
 
         {isConfirmState && (
           <div className="flex flex-col items-center mb-12 w-full">
-            <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl w-full max-w-lg mb-8 shadow-2xl">
-              <p className="text-slate-400 mb-2 text-lg">Did you say:</p>
-              <p className="text-4xl font-bold text-sky-400 tracking-wider">
+            <div className="bg-white border border-slate-300 p-8 rounded-3xl w-full max-w-lg mb-8 shadow-sm">
+              <p className="text-slate-600 font-medium mb-2 text-lg">Did you say:</p>
+              <p className="text-4xl font-bold text-blue-700 tracking-wider">
                 {state === "NAME_CONFIRM" && name}
                 {state === "AADHAAR_CONFIRM" && aadhaar}
                 {state === "MOBILE_CONFIRM" && mobile}
@@ -305,13 +305,13 @@ export default function AssistantOnboardingPage() {
             <div className="flex gap-6 w-full max-w-lg">
               <button 
                 onClick={handleRetry}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-5 rounded-2xl text-xl flex items-center justify-center transition-colors border border-slate-600"
+                className="flex-1 bg-white hover:bg-slate-50 text-slate-700 font-bold py-5 rounded-2xl text-xl flex items-center justify-center transition-colors border border-slate-300 shadow-sm"
               >
                 <X className="mr-2" /> Retry
               </button>
               <button 
                 onClick={handleConfirm}
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-5 rounded-2xl text-xl flex items-center justify-center transition-colors shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-2xl text-xl flex items-center justify-center transition-colors shadow-md"
               >
                 <Check className="mr-2" /> Confirm
               </button>
@@ -322,11 +322,11 @@ export default function AssistantOnboardingPage() {
         {(state === "SUBMIT" || state === "DONE") && (
           <div className="flex flex-col items-center mb-12">
             {state === "SUBMIT" ? (
-              <Loader2 className="w-24 h-24 text-teal-400 animate-spin mb-6" />
+              <Loader2 className="w-24 h-24 text-purple-600 animate-spin mb-6" />
             ) : (
-              <CheckCircle className="w-24 h-24 text-emerald-400 mb-6" />
+              <CheckCircle className="w-24 h-24 text-emerald-600 mb-6" />
             )}
-            <p className="text-xl text-slate-300">
+            <p className="text-xl text-slate-600 font-medium">
               {state === "SUBMIT" ? "Generating ABHA Profile..." : "Routing to Department Selection..."}
             </p>
           </div>
@@ -334,8 +334,8 @@ export default function AssistantOnboardingPage() {
 
         {/* Live Transcript Display */}
         {isListening && (
-          <div className="h-20 flex items-center justify-center w-full max-w-lg bg-slate-900/80 rounded-2xl p-4 border border-slate-700">
-            <p className="text-2xl font-medium italic text-rose-400">
+          <div className="h-20 flex items-center justify-center w-full max-w-lg bg-white/80 rounded-2xl p-4 border border-slate-200 shadow-sm">
+            <p className="text-2xl font-medium italic text-rose-600">
               {transcript ? `"${transcript}"` : "..."}
             </p>
           </div>
