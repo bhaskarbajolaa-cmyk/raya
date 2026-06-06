@@ -17,3 +17,12 @@ __pycache__/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Next.js build and cache
+Raya/frontend/.next/
+Raya/frontend/node_modules/
+Raya/frontend/out/
+Raya/frontend/build/
+
+# ONNX Models
+*.onnx

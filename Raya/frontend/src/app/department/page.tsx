@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, User, Mic, MicOff, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Mic, MicOff, Loader2, Camera, X, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 import * as Icons from "lucide-react";
 
 import { useEffect, useRef, useState } from "react";
@@ -19,6 +19,137 @@ function DepartmentContent() {
   const { isListening, transcript, startListening, stopListening, resetTranscript, speak } = useVoice();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+
+  // States for face ID update modal
+  const [showFaceModal, setShowFaceModal] = useState(false);
+  const [faceModalLoading, setFaceModalLoading] = useState(false);
+  const [faceModalError, setFaceModalError] = useState("");
+  const [faceModalSuccess, setFaceModalSuccess] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const faceVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Camera handler for Face ID update modal
+  useEffect(() => {
+    let activeStream: MediaStream | null = null;
+
+    const startFaceCamera = async () => {
+      if (!showFaceModal) return;
+      
+      setFaceModalError("");
+      setFaceModalSuccess(false);
+      setFaceModalLoading(false);
+      setCountdown(3);
+
+      try {
+        activeStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+        setCameraStream(activeStream);
+        if (faceVideoRef.current) {
+          faceVideoRef.current.srcObject = activeStream;
+        }
+      } catch (err) {
+        console.error("Camera access failed:", err);
+        setFaceModalError("Unable to access camera. Please check permissions. / कैमरा एक्सेस नहीं मिला।");
+        setCountdown(null);
+      }
+    };
+
+    startFaceCamera();
+
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+      }
+      setCameraStream(null);
+    };
+  }, [showFaceModal]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (countdown === null || countdown <= 0 || !cameraStream) return;
+
+    const timer = setTimeout(() => {
+      setCountdown(prev => {
+        if (prev === 1) {
+          captureFaceImage();
+          return 0;
+        }
+        return prev !== null ? prev - 1 : null;
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown, cameraStream]);
+
+  const captureFaceImage = async () => {
+    if (!faceVideoRef.current || !abha) return;
+
+    setFaceModalLoading(true);
+    setFaceModalError("");
+
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = faceVideoRef.current.videoWidth || 640;
+      canvas.height = faceVideoRef.current.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      
+      if (!ctx) {
+        throw new Error("Could not initialize canvas context");
+      }
+
+      ctx.drawImage(faceVideoRef.current, 0, 0, canvas.width, canvas.height);
+      const base64Image = canvas.toDataURL("image/jpeg");
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/face/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          abha_number: abha,
+          image_base64: base64Image
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Failed to update Face ID");
+      }
+
+      setFaceModalSuccess(true);
+      speak("Aapka face ID update ho gaya hai.");
+      
+      // Auto close after 2 seconds
+      setTimeout(() => {
+        closeFaceModal();
+      }, 2000);
+
+    } catch (err: any) {
+      console.error("Failed to register face:", err);
+      setFaceModalError(err.message || "Failed to update Face ID. Please try again. / फेस आईडी अपडेट करने में विफल।");
+      setCountdown(null); // Stop countdown
+    } finally {
+      setFaceModalLoading(false);
+    }
+  };
+
+  const closeFaceModal = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+    setCameraStream(null);
+    setShowFaceModal(false);
+    setCountdown(null);
+    setFaceModalSuccess(false);
+    setFaceModalError("");
+    setFaceModalLoading(false);
+  };
+
+  const retryCapture = () => {
+    setFaceModalError("");
+    setFaceModalSuccess(false);
+    setFaceModalLoading(false);
+    setCountdown(3);
+  };
 
   const DEFAULT_DEPARTMENTS = [
     { id: 1, name: "Cardiology", hindi_name: "हृदय रोग", icon: "HeartPulse", color: "text-rose-500", bg_color: "bg-rose-500/10", description: "For heart-related issues, chest pain, palpitations, cardiovascular problems, high/low blood pressure" },
@@ -188,18 +319,30 @@ function DepartmentContent() {
           <ArrowLeft className="mr-2" /> Back / वापस जाएँ
         </button>
 
-        {/* User Indication Top Right */}
-        <div className="flex items-center bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm">
-          <User className="w-8 h-8 text-emerald-600 mr-3" />
-          <div className="flex flex-col text-left">
-            <span className="text-slate-900 font-medium text-sm">
-              Welcome, <span className="text-emerald-700 text-base">{patientName}</span>
-            </span>
-            {abha && (
-              <span className="text-slate-500 text-xs font-mono mt-0.5 tracking-wider">
-                ABHA: {abha}
+        <div className="flex items-center gap-4">
+          {abha && (
+            <button
+              onClick={() => setShowFaceModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-5 rounded-2xl border border-emerald-500/20 shadow-md transition-all hover:scale-105 active:scale-95"
+            >
+              <Camera className="w-5 h-5" />
+              <span>Update Face ID / फेस आईडी बदलें</span>
+            </button>
+          )}
+
+          {/* User Indication Top Right */}
+          <div className="flex items-center bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm">
+            <User className="w-8 h-8 text-emerald-600 mr-3" />
+            <div className="flex flex-col text-left">
+              <span className="text-slate-900 font-medium text-sm">
+                Welcome, <span className="text-emerald-700 text-base">{patientName}</span>
               </span>
-            )}
+              {abha && (
+                <span className="text-slate-500 text-xs font-mono mt-0.5 tracking-wider">
+                  ABHA: {abha}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -291,6 +434,116 @@ function DepartmentContent() {
               className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-md hover:shadow-lg text-lg"
             >
               Go to Home / वापस जाएँ
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Update Face ID Modal */}
+      {showFaceModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-3xl p-8 max-w-md w-full text-center border-t-8 border-t-emerald-600 shadow-2xl relative"
+          >
+            <button
+              onClick={closeFaceModal}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-full hover:bg-slate-100"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <h3 className="text-2xl font-bold text-slate-900 mb-1">Update Face ID</h3>
+            <p className="text-emerald-700 font-medium text-sm mb-6">अपना फेस आईडी अपडेट करें</p>
+
+            <div className="w-72 h-72 rounded-2xl border-4 border-emerald-500/50 overflow-hidden relative mx-auto mb-6 bg-slate-950 shadow-inner">
+              {cameraStream ? (
+                <>
+                  <video
+                    ref={faceVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+                  />
+                  {/* Scanning line animation */}
+                  {!faceModalSuccess && !faceModalError && (
+                    <div className="absolute w-full h-1 bg-emerald-500 shadow-[0_0_15px_#10b981] animate-[scan_2.5s_ease-in-out_infinite] z-10" />
+                  )}
+                </>
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-4">
+                  {faceModalError ? (
+                    <AlertCircle className="w-12 h-12 text-rose-500 mb-2" />
+                  ) : (
+                    <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-2" />
+                  )}
+                  <p className="text-sm font-medium">
+                    {faceModalError ? "Camera Access Failed" : "Starting camera..."}
+                  </p>
+                </div>
+              )}
+
+              {/* Countdown Overlay */}
+              {countdown !== null && countdown > 0 && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
+                  <motion.span
+                    key={countdown}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1.2, opacity: 1 }}
+                    exit={{ scale: 1.5, opacity: 0 }}
+                    className="text-white text-7xl font-extrabold"
+                  >
+                    {countdown}
+                  </motion.span>
+                </div>
+              )}
+
+              {/* Success Overlay */}
+              {faceModalSuccess && (
+                <div className="absolute inset-0 bg-emerald-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 p-4">
+                  <CheckCircle className="w-16 h-16 text-emerald-400 mb-2 animate-bounce" />
+                  <p className="text-white font-bold text-lg">Face ID Updated!</p>
+                  <p className="text-emerald-200 text-sm">सफलतापूर्वक अपडेट किया गया</p>
+                </div>
+              )}
+            </div>
+
+            {/* Error Message & Controls */}
+            {faceModalError ? (
+              <div className="mb-6">
+                <p className="text-rose-600 font-semibold text-sm mb-4 bg-rose-50 p-3 rounded-xl border border-rose-100">
+                  {faceModalError}
+                </p>
+                <button
+                  onClick={retryCapture}
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md active:scale-95"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  Retry / पुनः प्रयास करें
+                </button>
+              </div>
+            ) : faceModalLoading ? (
+              <div className="flex flex-col items-center justify-center gap-2 mb-6">
+                <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+                <p className="text-slate-700 font-medium text-sm">Processing image & updating... / प्रोसेस किया जा रहा है...</p>
+              </div>
+            ) : !faceModalSuccess ? (
+              <p className="text-slate-500 text-sm mb-6">
+                Please look directly into the camera. We will take a photo automatically.
+              </p>
+            ) : (
+              <p className="text-emerald-700 font-semibold text-sm mb-6">
+                Closing window...
+              </p>
+            )}
+
+            <button
+              onClick={closeFaceModal}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-6 rounded-2xl transition-all"
+            >
+              Cancel / रद्द करें
             </button>
           </motion.div>
         </div>
